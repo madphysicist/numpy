@@ -2063,7 +2063,7 @@ def all(a, axis=None, out=None, keepdims=np._NoValue):
     return arr.all(axis=axis, out=out, **kwargs)
 
 
-def cumsum(a, axis=None, dtype=None, out=None):
+def cumsum(a, axis=None, dtype=None, out=None, norm=None):
     """
     Return the cumulative sum of the elements along a given axis.
 
@@ -2128,10 +2128,31 @@ def cumsum(a, axis=None, dtype=None, out=None):
 
     """
     try:
-        cumsum = a.cumsum
+        cumsum = a.cumsum(axis, dtype, out)
     except AttributeError:
-        return _wrapit(a, 'cumsum', axis, dtype, out)
-    return cumsum(axis, dtype, out)
+        cumsum = _wrapit(a, 'cumsum', axis, dtype, out)
+ 
+    if cumsum.size == 0 or norm is None or np.all(norm == 0):
+        return cumsum
+
+    norm = np.atleast_1d(norm)
+    if norm.ndim >= cumsum.ndim:
+        raise ValueError('norm will not broadcast correctly')
+    if norm.ndim >= cumsum.ndim - axis:
+        norm = np.expand_dims(norm, cumsum.ndim - axis - norm.ndim + 1)
+    if cumsum.size == 1:
+        if norm.size != 1:
+            raise ValueError('non-scalar norm for one-element cumsum')
+        return norm
+
+    if cumsum.ndim > 1:
+        # Inspired by https://github.com/numpy/numpy/pull/7346 (np.flip)
+        index = [slice(None)] * cumsum.ndim
+        index[axis] = slice(-1, None)
+        factor = norm / cumsum[tuple(index)]
+    else:
+        factor = norm / cumsum[-1]
+    return cumsum * factor
 
 
 def cumproduct(a, axis=None, dtype=None, out=None):

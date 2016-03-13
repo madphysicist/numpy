@@ -421,6 +421,37 @@ class TestCumsum(TestCase):
                 [[1, 3, 6, 10], [5, 11, 18, 27], [10, 13, 17, 22]], ctype)
             assert_array_equal(np.cumsum(a2, axis=1), tgt)
 
+    def test_norm(self):
+        ba = np.arange(3 * 5 * 7).reshape(3, 5, 7)
+
+        # Zero is like None
+        norm = 0.0
+        cs = np.cumsum(ba, norm=norm)
+        assert_equal(cs, np.cumsum(ba))
+        assert_equal(cs[-1], np.sum(ba))
+        assert_(np.issubdtype(np.integer, cs.dtype))
+
+        # Simple case: 1D sum
+        norm = 1.0
+        cs = np.cumsum(ba, norm=norm)
+        assert_equal(cs[0], 0)
+        assert_equal(cs[-1], norm)
+        assert_(np.issubdtype(np.inexact, cs.dtype))
+
+        # More complicated case: 3D sum, scalar norm
+        norm = 100
+        cs = np.cumsum(ba, axis=2, norm=norm)
+        assert_equal(cs[0, 0, 0], 0)
+        assert_almost_equal(cs[:, :, -1], norm * np.ones(cs.shape[:2]))
+        assert_(np.issubdtype(np.inexact, cs.dtype))
+
+        # Most complicated case: 3D sum, 2D norm
+        norm = rand(3, 7)
+        cs = np.cumsum(ba, axis=1, norm=norm)
+
+        # Error
+        assert_raises(ValueError, np.cumsum, ba, norm=np.arange(3 * 5 * 7))
+
 
 class TestProd(TestCase):
 
