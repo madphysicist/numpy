@@ -1,0 +1,107 @@
+#include <Python.h>
+#include <stdlib.h>
+#include <numpy/ndarraytypes.h>
+#include <numpy/numpyconfig.h>
+
+/**begin repeat
+ *
+ * #TYPE = bool, byte, ubyte, short, ushort, int, uint, long, ulong,
+ *         longlong, ulonglong, half, float, double, longdouble,
+ *         datetime, timedelta#
+ * #type = npy_bool, npy_byte, npy_ubyte, npy_short, npy_ushort, npy_int,
+ *         npy_uint, npy_long, npy_ulong, npy_longlong, npy_ulonglong,
+ *         npy_ushort, npy_float, npy_double, npy_longdouble,
+ *         npy_datetime, npy_timedelta#
+ */
+NPY_NO_EXPORT int
+@TYPE@_same(char *ip, npy_intp is, npy_intp n, void *NPY_UNUSED(ignore))
+{
+    npy_intp i;
+    @type@ val = *((@type@ *)ip);
+
+    ip += is;
+    for(i = 1; i < n; i++, ip += is) {
+        if(*((@type@ *)ip) != val) {
+            return 0;
+        }
+    }
+    return 1;
+}
+/**end repeat**/
+
+/**begin repeat
+ *
+ * #TYPE = CFLOAT, CDOUBLE, CLONGDOUBLE#
+ * #type = npy_cfloat, npy_cdouble, npy_clongdouble#
+ * #etype = npy_float, npy_double, npy_longdouble#
+ */
+NPY_NO_EXPORT int
+@TYPE@_same(char *ip, npy_intp is, npy_intp n, void *NPY_UNUSED(ignore))
+{
+    npy_intp i;
+    @etype@ rval = ((@type@ *)ip)[0];
+    @etype@ ival = ((@type@ *)ip)[1];
+
+    ip += is;
+    for(i = 1; i < n; i++, ip += is) {
+        const @etype@ rtmp = ((@etype@ *)ip)[0];
+        const @etype@ itmp = ((@etype@ *)ip)[1];
+        if(rtmp != rval || itmp != ival) {
+            return 0;
+        }
+    }
+    return 1;
+}
+/**end repeat**/
+
+/**begin repeat
+ *
+ * #TYPE = STRING, UNICODE#
+ * #type = npy_char, npy_ucs4#
+ */
+/**end repeat**/
+
+NPY_NO_EXPORT int
+object_same(char *ip, npy_intp is, npy_intp n, void *NPY_UNUSED(ignore))
+{
+    int ret, cmp;
+    npy_intp i;
+    PyObject *val = *((PyObject **)ip);
+    Py_XINCREF(val);
+
+    ip += is;
+    ret = 1;
+    for(i = 1; i < n; i++, ip += is) {
+        cmp = PyObject_RichCompareBool(*((PyObject **)ip), val, Py_EQ);
+        if(cmp <= 0) {
+            ret = cmp;
+            break;
+        }
+    }
+    Py_XDECREF(val);
+    return ret;
+}
+
+// This is provided for completeness. Not sure if it will ever be used.
+NPY_NO_EXPORT int
+npy_same(char *ip, npy_intp is, npy_intp n, void *arr)
+{
+    npy_intp i;
+    PyArray_CompareFunc *cmp = PyArray_DESCR(arr)->f->compare;
+    npy_intp elsize = PyArray_ITEMSIZE(arr);
+    char *val = malloc(elsize);
+
+    if (val == NULL) {
+        return -NPY_ENOMEM;
+    }
+    memcpy(val, ip, elsize);
+
+    ip += is;
+    for(i = 1; i < n; i++, ip += is) {
+        if(cmp(val, ip, arr)) {
+            return 0;
+        }
+    }
+    return 1;
+}
+
