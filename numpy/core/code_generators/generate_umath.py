@@ -228,6 +228,7 @@ inexact = flts + cmplx
 inexactvec = 'fd'
 noint = inexact+O
 nointP = inexact+P
+noint_all = inexact + times + O
 allP = bints+times+flts+cmplxP
 nobool = all[1:]
 noobj = all[:-3]+all[-2:]
